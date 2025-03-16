@@ -26,4 +26,3 @@ export type Note = {
   creatorName: string
   history: HistoryEntry[]
 }
-

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
-import { getNotes } from "@/lib/note-service"
+import { getNotes, deleteNote } from "@/lib/note-service"
 import type { Note } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -33,7 +33,7 @@ export default function NotesPage() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
-  const notesPerPage = 6
+  const notesPerPage = 3
 
   useEffect(() => {
     if (!user) {
@@ -104,6 +104,32 @@ export default function NotesPage() {
 
   const toggleSortDirection = () => {
     setSortDirection(sortDirection === "asc" ? "desc" : "asc")
+  }
+
+  const deleteNoteHandler = async (noteId: string) => {
+    const isDeleted = deleteNote(noteId)
+
+    if (isDeleted) {
+      // Update local state to reflect the deleted note
+      setNotes((prevNotes) => prevNotes.filter((note) => note.id !== noteId))
+      setFilteredNotes((prevFilteredNotes) =>
+        prevFilteredNotes.filter((note) => note.id !== noteId)
+      )
+      
+      // Adjust the page number if it exceeds total pages after deletion
+      if (currentPage > totalPages) {
+        setCurrentPage(totalPages)
+      }
+    } else {
+      alert("Failed to delete the note.")
+    }
+  }
+
+  // Handle page change for pagination
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page)
+    }
   }
 
   if (!user) {
@@ -198,7 +224,7 @@ export default function NotesPage() {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             {currentNotes.map((note) => (
-              <Link href={`/notes/`} key={note.id}>
+              <Link href={`/notes`} key={note.id}>
                 <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start">
@@ -220,70 +246,51 @@ export default function NotesPage() {
                         </Badge>
                       ))}
                     </div>
-                  </CardContent>
-                  <CardFooter className="text-xs text-muted-foreground">
-                    <div className="flex flex-col w-full gap-1">
+                    <div className="flex gap-2 text-xs text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        Created: {formatDate(note.createdAt)}
+                        {formatDate(note.updatedAt)}
                       </div>
                       <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        Updated: {formatDate(note.updatedAt)}
+                        {formatTime(note.updatedAt)}
                       </div>
                     </div>
+                  </CardContent>
+                  <CardFooter>
+                    <Button
+                      variant="destructive"
+                      className="w-full"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        deleteNoteHandler(note.id)
+                      }}
+                    >
+                      Delete
+                    </Button>
                   </CardFooter>
                 </Card>
               </Link>
             ))}
           </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <Pagination className="my-4">
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      if (currentPage > 1) setCurrentPage(currentPage - 1)
-                    }}
-                    className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
-                  />
-                </PaginationItem>
-
-                {Array.from({ length: totalPages }).map((_, index) => (
-                  <PaginationItem key={index}>
-                    <PaginationLink
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        setCurrentPage(index + 1)
-                      }}
-                      isActive={currentPage === index + 1}
-                    >
-                      {index + 1}
-                    </PaginationLink>
-                  </PaginationItem>
-                ))}
-
-                <PaginationItem>
-                  <PaginationNext
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      if (currentPage < totalPages) setCurrentPage(currentPage + 1)
-                    }}
-                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          )}
+          <Pagination>
+            <PaginationContent>
+              <PaginationPrevious
+                onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
+              >
+                Previous
+              </PaginationPrevious>
+              <PaginationItem>{currentPage}</PaginationItem>
+              <PaginationNext
+                onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
+              >
+                Next
+              </PaginationNext>
+            </PaginationContent>
+          </Pagination>
         </>
       )}
     </div>
   )
 }
-
