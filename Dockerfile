@@ -1,52 +1,35 @@
-FROM node:20-alpine AS base
+# Step 1: Use the official Node.js image as a base image
+FROM node:18 AS builder
 
-# Install dependencies only when needed
-FROM base AS deps
+# Step 2: Set the working directory inside the container
 WORKDIR /app
 
-# Install dependencies based on the preferred package manager
-COPY package.json package-lock.json* ./
-RUN npm ci
+# Step 3: Copy package.json and package-lock.json (or yarn.lock)
+COPY package*.json ./
 
-# Rebuild the source code only when needed
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+# Step 4: Install dependencies
+RUN npm install --force
+
+# Step 5: Copy the rest of the application files
 COPY . .
 
-# Next.js collects completely anonymous telemetry data about general usage.
-# Learn more here: https://nextjs.org/telemetry
-# Uncomment the following line in case you want to disable telemetry during the build.
-ENV NEXT_TELEMETRY_DISABLED 1
-
+# Step 6: Build the Next.js app
 RUN npm run build
 
-# Production image, copy all the files and run next
-FROM base AS runner
+# Step 7: Use a lighter image for serving the app (production image)
+FROM node:18-slim
+
+# Set the working directory in the new container
 WORKDIR /app
 
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
+# Copy the static files from the builder stage
+COPY --from=builder /app/out ./out
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# Install serve to serve the static site
+RUN npm install -g serve
 
-COPY --from=builder /app/public ./public
-
-# Set the correct permission for prerender cache
-RUN mkdir .next
-RUN chown nextjs:nodejs .next
-
-# Automatically leverage output traces to reduce image size
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-USER nextjs
-
+# Expose the port the app will run on
 EXPOSE 3000
 
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
-
-CMD ["node", "server.js"]
-
+# Command to serve the app
+CMD ["serve", "-s", "out", "-l", "3000"]

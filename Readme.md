@@ -33,3 +33,18 @@ https://noteeasy-d8d7d.web.app/
    ```
 4. Open in browser: `http://localhost:3000`
 
+### Docker Setup
+
+1. Build DockerImage:
+
+```sh
+docker build -t noteeasy-app .
+```
+
+2. Start the development server:
+
+```sh
+docker run -p 3000:3000 noteeasy-app
+```
+
+3. Open in browser: `http://localhost:3000`
